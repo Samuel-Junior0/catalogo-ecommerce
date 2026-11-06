@@ -73,6 +73,35 @@ http://localhost:8081
 
 A porta está definida em `src/main/resources/application.properties` (`server.port=8081`).
 
+## Endpoints
+
+| Método | Rota                 | Descrição                                                        |
+| ------ | -------------------- | ---------------------------------------------------------------- |
+| GET    | `/`                  | Status básico da aplicação                                       |
+| GET    | `/health/firestore`  | Escreve e lê um documento em `_health/ping` para testar o Firestore |
+
+Exemplo:
+
+```bash
+curl http://localhost:8081/health/firestore
+```
+
+Resposta quando a aplicação está falando com o emulador (`200 OK`):
+
+```json
+{
+  "emulatorHost": "localhost:8080",
+  "projectId": "demo-catalogo",
+  "conectado": true,
+  "status": "ok",
+  "documento": "_health/ping",
+  "dados": { "ultimoPing": "2026-11-06T18:00:00.000Z" },
+  "latenciaMs": 42
+}
+```
+
+Se a conexão falhar, retorna `503 Service Unavailable` com `"conectado": false` e a mensagem de erro. Você também pode conferir o documento criado em http://127.0.0.1:4000/firestore.
+
 ## Rodar os testes
 
 ```bash
