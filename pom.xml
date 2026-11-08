@@ -14,7 +14,7 @@
 	<name>catalogo-ecommerce</name>
 	<description>Mini catálogo de e-commerce com Spring Boot e Firestore</description>
 	<properties>
-		<java.version>23</java.version>
+		<java.version>24</java.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -47,6 +47,11 @@
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -54,6 +59,24 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<!-- Ha duas classes com main: a aplicacao web e o Main (bateria de testes). -->
+					<mainClass>br.edu.ifpb.catalogo_ecommerce.CatalogoEcommerceApplication</mainClass>
+				</configuration>
+			</plugin>
+			<plugin>
+				<!-- Permite rodar a bateria de testes com: mvnw exec:exec -->
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<version>3.6.4</version>
+				<configuration>
+					<executable>java</executable>
+					<arguments>
+						<argument>-classpath</argument>
+						<classpath/>
+						<argument>br.edu.ifpb.catalogo_ecommerce.Main</argument>
+					</arguments>
+				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

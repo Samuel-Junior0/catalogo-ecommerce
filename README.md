@@ -38,32 +38,32 @@ Serviços disponíveis:
 
 Deixe esse terminal aberto.
 
-### 2. Configurar a variável de ambiente
+### 2. Rodar a aplicação
 
-O cliente Java do Firestore detecta o emulador pela variável:
+O host do emulador já vem configurado em `src/main/resources/application.properties`:
 
+```properties
+firestore.project-id=demo-catalogo
+firestore.emulator-host=${FIRESTORE_EMULATOR_HOST:localhost:8080}
 ```
-FIRESTORE_EMULATOR_HOST=localhost:8080
-```
+
+Ou seja: se a variável `FIRESTORE_EMULATOR_HOST` estiver definida, ela é usada; caso contrário,
+vale `localhost:8080`. Não é preciso configurar nada no IntelliJ para rodar localmente.
 
 #### No IntelliJ IDEA
 
-1. **Run → Edit Configurations…**
-2. Selecione a configuração `CatalogoEcommerceApplication` (criada automaticamente ao executar o `main`).
-3. No campo **Environment variables**, adicione:
-   ```
-   FIRESTORE_EMULATOR_HOST=localhost:8080
-   ```
-4. **Apply → OK**.
-
-> A configuração de execução não é versionada: cada pessoa cria a sua no IntelliJ. O que precisa ser igual para todos é apenas a variável `FIRESTORE_EMULATOR_HOST=localhost:8080`.
+Basta executar a classe `CatalogoEcommerceApplication` (ou a configuração criada automaticamente
+ao executar o `main`).
 
 #### No terminal
 
 ```bash
-export FIRESTORE_EMULATOR_HOST=localhost:8080
 ./mvnw spring-boot:run
 ```
+
+> Para usar outro host/porta de emulador, defina `FIRESTORE_EMULATOR_HOST` (por exemplo,
+> `FIRESTORE_EMULATOR_HOST=127.0.0.1:9090`) ou sobrescreva a propriedade
+> `firestore.emulator-host`.
 
 ### 3. Acessar a aplicação
 
