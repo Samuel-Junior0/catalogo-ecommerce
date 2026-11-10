@@ -1,5 +1,10 @@
 package br.edu.ifpb.catalogo_ecommerce;
 
+import br.edu.ifpb.catalogo_ecommerce.dto.CarrinhoRequest;
+import br.edu.ifpb.catalogo_ecommerce.dto.CarrinhoUpdateRequest;
+import br.edu.ifpb.catalogo_ecommerce.dto.ItemCarrinhoRequest;
+import br.edu.ifpb.catalogo_ecommerce.dto.PagamentoRequest;
+import br.edu.ifpb.catalogo_ecommerce.dto.VendaRequest;
 import br.edu.ifpb.catalogo_ecommerce.enumerates.MetodoPagamento;
 import br.edu.ifpb.catalogo_ecommerce.exception.EntidadeNaoEncontradaException;
 import br.edu.ifpb.catalogo_ecommerce.model.Verificacao.CodigoVerificacao;
@@ -15,7 +20,6 @@ import br.edu.ifpb.catalogo_ecommerce.service.PagamentoService;
 import br.edu.ifpb.catalogo_ecommerce.service.ProdutoService;
 import br.edu.ifpb.catalogo_ecommerce.service.UsuarioService;
 import br.edu.ifpb.catalogo_ecommerce.service.VendaService;
-import com.google.cloud.Timestamp;
 import org.springframework.context.ConfigurableApplicationContext;
 
 import java.util.ArrayList;
@@ -23,10 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Bateria automatizada de testes de fumaca, executada pela opcao 7 do menu.
- * Cria documentos no Firestore, valida cada operacao e remove tudo ao final.
- */
 public class BateriaAutomatica {
 
     private final List<String> falhas = new ArrayList<>();
@@ -48,17 +48,12 @@ public class BateriaAutomatica {
         this.codigoVerificacaoRepository = contexto.getBean(CodigoVerificacaoRepository.class);
     }
 
-    /** Executa todos os cenarios e devolve {@code true} se nenhum falhou. */
     public boolean executar() {
-        try {
-            cenarioProduto();
-            cenarioUsuario();
-            cenarioCarrinho();
-            cenarioVendaEPagamento();
-            cenarioCodigoVerificacao();
-        } finally {
-            executarLimpeza();
-        }
+        cenarioProduto();
+        cenarioUsuario();
+        cenarioCarrinho();
+        cenarioVendaEPagamento();
+        cenarioCodigoVerificacao();
         if (!falhas.isEmpty()) {
             System.out.println("=== RESUMO ===");
             System.out.println(falhas.size() + " falha(s):");
@@ -69,8 +64,6 @@ public class BateriaAutomatica {
         }
         return falhas.isEmpty();
     }
-
-    // ------------------------------------------------------------------ cenarios
 
     private void cenarioProduto() {
         cenario("PRODUTO - criar, consultar, atualizar e listar", () -> {
@@ -94,7 +87,7 @@ public class BateriaAutomatica {
             exigirIgual("Notebook IFPB", encontrado.getNome(), "nome");
             exigirIgual(349_990L, encontrado.getPrecoEmCentavos(), "precoEmCentavos");
             exigirIgual(10, encontrado.getEstoque(), "estoque");
-            exigirIgual("informatica", encontrado.getCatregoriaId(), "categoriaId");
+            exigirIgual("informatica", encontrado.getCategoriaId(), "categoriaId");
             exigirIgual(List.of("teste", "notebook"), encontrado.getTags(), "tags");
             exigir(encontrado.getCriadoEm() != null, "criadoEm deveria ser preenchido pelo @ServerTimestamp");
             System.out.println("  lido: " + encontrado.getNome() + " / estoque=" + encontrado.getEstoque());
@@ -149,20 +142,21 @@ public class BateriaAutomatica {
 
     private void cenarioCarrinho() {
         cenario("CARRINHO - criacao, itens e totais", () -> {
+            Usuario usuario = new Usuario(null, "carrinho.main@ifpb.edu.br", "senha");
+            String usuarioId = usuarioService.criar(usuario);
+            agendarLimpeza("usuario " + usuarioId, () -> usuarioService.deletar(usuarioId));
+
             Produto produto = new Produto("Caneca IFPB", "Caneca de ceramica", 4_500L, 20, true,
                     "utilidades", null);
             String produtoId = produtoService.criar(produto);
             agendarLimpeza("produto " + produtoId, () -> produtoService.deletar(produtoId));
             produto.setId(produtoId);
 
-            ItemCarrinho item = new ItemCarrinho(produto, 3);
-            exigirIgual(13_500L, item.getSubtotal(), "subtotal do item");
-
-            List<ItemCarrinho> itens = List.of(item);
-            Carrinho carrinho = new Carrinho(null, itens, item.getSubtotal(), itens);
-            String carrinhoId = carrinhoService.criar(carrinho);
+            CarrinhoRequest request = new CarrinhoRequest(usuarioId,
+                    List.of(new ItemCarrinhoRequest(produtoId, 3)));
+            String carrinhoId = carrinhoService.criar(request);
             agendarLimpeza("carrinho " + carrinhoId, () -> carrinhoService.deletar(carrinhoId));
-            System.out.println("  criado: id=" + carrinhoId + " total=" + carrinho.getTotalEmCentavos());
+            System.out.println("  criado: id=" + carrinhoId);
 
             Carrinho salvo = carrinhoService.buscarPorId(carrinhoId).orElseThrow();
             exigirIgual(13_500L, salvo.getTotalEmCentavos(), "totalEmCentavos");
@@ -171,65 +165,75 @@ public class BateriaAutomatica {
             ItemCarrinho itemSalvo = salvo.getProdutos().getFirst();
             exigirIgual(produtoId, itemSalvo.getProdutoId(), "produtoId do item");
             exigirIgual("Caneca IFPB", itemSalvo.getNome(), "nome do item");
+            exigirIgual(4_500L, itemSalvo.getPrecoEmCentavos(), "preco do item");
             exigirIgual(3, itemSalvo.getQuantidade(), "quantidade do item");
             exigirIgual(13_500L, itemSalvo.getSubtotal(), "subtotal lido");
             System.out.println("  lido: " + itemSalvo.getQuantidade() + "x " + itemSalvo.getNome()
                     + " = " + itemSalvo.getSubtotal() + " centavos");
+
+            carrinhoService.atualizar(carrinhoId,
+                    new CarrinhoUpdateRequest(List.of(new ItemCarrinhoRequest(produtoId, 2))));
+
+            Carrinho atualizado = carrinhoService.buscarPorId(carrinhoId).orElseThrow();
+            exigirIgual(9_000L, atualizado.getTotalEmCentavos(), "total apos atualizacao");
+            exigirIgual(2, atualizado.getProdutos().getFirst().getQuantidade(),
+                    "quantidade apos atualizacao");
+            System.out.println("  atualizado: total=" + atualizado.getTotalEmCentavos()
+                    + " quantidade=" + atualizado.getProdutos().getFirst().getQuantidade());
         });
     }
 
     private void cenarioVendaEPagamento() {
         cenario("VENDA + PAGAMENTO - fluxo de compra ate a confirmacao", () -> {
+            Usuario usuario = new Usuario(null, "venda.main@ifpb.edu.br", "senha");
+            String usuarioId = usuarioService.criar(usuario);
+            agendarLimpeza("usuario " + usuarioId, () -> usuarioService.deletar(usuarioId));
+
             Produto produto = new Produto("Curso de Spring Boot", "Curso de teste", 19_900L, 100,
                     true, "cursos", null);
             String produtoId = produtoService.criar(produto);
             agendarLimpeza("produto " + produtoId, () -> produtoService.deletar(produtoId));
             produto.setId(produtoId);
-            // Timestamp concreto evita o sentinela de @ServerTimestamp dentro de um array.
-            produto.setCriadoEm(Timestamp.now());
 
-            ItemCarrinho item = new ItemCarrinho(produto, 1);
-            List<ItemCarrinho> itens = List.of(item);
-            String carrinhoId = carrinhoService.criar(new Carrinho(null, itens, item.getSubtotal(), itens));
+            String carrinhoId = carrinhoService.criar(new CarrinhoRequest(usuarioId,
+                    List.of(new ItemCarrinhoRequest(produtoId, 1))));
             agendarLimpeza("carrinho " + carrinhoId, () -> carrinhoService.deletar(carrinhoId));
 
-            Venda venda = new Venda();
-            venda.setCarrinhoId(carrinhoId);
-            venda.setTotalEmCentavos(item.getSubtotal());
-            venda.setItens(List.of(produto));
-            venda.setPago(false);
-            String vendaId = vendaService.criar(venda);
+            String vendaId = vendaService.criar(new VendaRequest(carrinhoId));
             agendarLimpeza("venda " + vendaId, () -> vendaService.deletar(vendaId));
+            Venda venda = vendaService.buscarPorId(vendaId).orElseThrow();
+            exigirIgual(produto.getPrecoEmCentavos(), venda.getTotalEmCentavos(),
+                    "total derivado do carrinho");
+            exigirIgual(1, venda.getItens().size(), "itens derivados do carrinho");
             System.out.println("  venda criada: id=" + vendaId + " total=" + venda.getTotalEmCentavos());
 
-            Pagamento pagamento = new Pagamento(false, null, vendaId, MetodoPagamento.PIX,
-                    venda.getTotalEmCentavos());
-            String pagamentoId = pagamentoService.criar(pagamento);
+            String pagamentoId = pagamentoService.criar(
+                    new PagamentoRequest(vendaId, MetodoPagamento.PIX));
             agendarLimpeza("pagamento " + pagamentoId, () -> pagamentoService.deletar(pagamentoId));
             System.out.println("  pagamento criado: id=" + pagamentoId);
 
             Pagamento pagamentoSalvo = pagamentoService.buscarPorId(pagamentoId).orElseThrow();
             exigirIgual(MetodoPagamento.PIX, pagamentoSalvo.getMetodoPagamento(), "metodoPagamento");
             exigirIgual(vendaId, pagamentoSalvo.getVendaId(), "vendaId do pagamento");
+            exigirIgual(venda.getTotalEmCentavos(), pagamentoSalvo.getPrecoEmCentavos(), "valor do pagamento");
             exigir(!pagamentoSalvo.isPago(), "pagamento recem-criado deveria estar pendente");
-
-            pagamentoSalvo.setPago(true);
-            pagamentoService.salvar(pagamentoId, pagamentoSalvo);
-            exigir(pagamentoService.buscarPorId(pagamentoId).orElseThrow().isPago(),
-                    "pagamento deveria estar pago apos salvar");
+            exigir(pagamentoSalvo.getPagoEm() == null, "pagoEm deveria estar nulo antes da confirmacao");
 
             Venda vendaSalva = vendaService.buscarPorId(vendaId).orElseThrow();
             exigir(!vendaSalva.isPago(), "venda deveria comecar nao paga");
-            vendaSalva.setPagamentoId(pagamentoId);
-            vendaSalva.setPago(true);
-            vendaService.salvar(vendaId, vendaSalva);
+
+            vendaService.confirmarPagamento(vendaId);
+
+            Pagamento pagamentoFinal = pagamentoService.buscarPorId(pagamentoId).orElseThrow();
+            exigir(pagamentoFinal.isPago(), "pagamento deveria estar pago apos a transacao");
+            exigir(pagamentoFinal.getPagoEm() != null, "pagoEm deveria ser preenchido na transacao");
 
             Venda vendaFinal = vendaService.buscarPorId(vendaId).orElseThrow();
             exigir(vendaFinal.isPago(), "venda deveria estar paga");
             exigirIgual(pagamentoId, vendaFinal.getPagamentoId(), "pagamentoId da venda");
             exigirIgual(1, vendaFinal.getItens().size(), "itens da venda");
-            System.out.println("  fluxo concluido: venda paga com "
-                    + pagamentoSalvo.getMetodoPagamento().getDescricao());
+            System.out.println("  fluxo concluido (transacao): venda paga com "
+                    + pagamentoFinal.getMetodoPagamento().getDescricao());
         });
     }
 
@@ -258,8 +262,6 @@ public class BateriaAutomatica {
             System.out.println("  removido com sucesso");
         });
     }
-
-    // ------------------------------------------------------------------ infraestrutura
 
     private void cenario(String nome, Runnable roteiro) {
         System.out.println("== " + nome + " ==");

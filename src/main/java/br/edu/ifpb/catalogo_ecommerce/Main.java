@@ -1,5 +1,10 @@
 package br.edu.ifpb.catalogo_ecommerce;
 
+import br.edu.ifpb.catalogo_ecommerce.dto.CarrinhoRequest;
+import br.edu.ifpb.catalogo_ecommerce.dto.CarrinhoUpdateRequest;
+import br.edu.ifpb.catalogo_ecommerce.dto.ItemCarrinhoRequest;
+import br.edu.ifpb.catalogo_ecommerce.dto.PagamentoRequest;
+import br.edu.ifpb.catalogo_ecommerce.dto.VendaRequest;
 import br.edu.ifpb.catalogo_ecommerce.enumerates.MetodoPagamento;
 import br.edu.ifpb.catalogo_ecommerce.exception.EntidadeNaoEncontradaException;
 import br.edu.ifpb.catalogo_ecommerce.exception.NenhumaEntidadeEncontradaException;
@@ -36,13 +41,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-/**
- * Menu de console para exercitar as funcionalidades do catalogo contra o emulador
- * do Firestore (localhost:8080).
- *
- * <p>Pre-requisito: {@code firebase emulators:start --only firestore}.
- * Execute com {@code .\mvnw.cmd exec:exec} ou diretamente pela IDE.</p>
- */
 public final class Main {
 
     private static final Scanner ENTRADA = new Scanner(System.in, StandardCharsets.UTF_8);
@@ -98,13 +96,11 @@ public final class Main {
         return true;
     }
 
-    // ------------------------------------------------------------------ menus
-
     private static void loopPrincipal() {
         while (true) {
             System.out.println();
             System.out.println("================ MENU PRINCIPAL ================");
-        System.out.println(" 1 - Produtos");
+            System.out.println(" 1 - Produtos");
             System.out.println(" 2 - Usuários");
             System.out.println(" 3 - Carrinhos");
             System.out.println(" 4 - Vendas");
@@ -116,15 +112,15 @@ public final class Main {
             int opcao = lerOpcao("Opção: ");
             switch (opcao) {
                 case 1 -> menuEntidade("PRODUTOS", produtoService,
-                        Main::novoProduto, Main::editarProduto, Main::resumoProduto);
+                        Main::criarProduto, Main::atualizarProduto, Main::resumoProduto);
                 case 2 -> menuEntidade("USUÁRIOS", usuarioService,
-                        Main::novoUsuario, Main::editarUsuario, Main::resumoUsuario);
+                        Main::criarUsuario, Main::atualizarUsuario, Main::resumoUsuario);
                 case 3 -> menuEntidade("CARRINHOS", carrinhoService,
-                        Main::novoCarrinho, Main::editarCarrinho, Main::resumoCarrinho);
+                        Main::criarCarrinho, Main::atualizarCarrinho, Main::resumoCarrinho);
                 case 4 -> menuEntidade("VENDAS", vendaService,
-                        Main::novaVenda, Main::editarVenda, Main::resumoVenda);
+                        Main::criarVenda, Main::confirmarVenda, Main::resumoVenda);
                 case 5 -> menuEntidade("PAGAMENTOS", pagamentoService,
-                        Main::novoPagamento, Main::editarPagamento, Main::resumoPagamento);
+                        Main::criarPagamento, null, Main::resumoPagamento);
                 case 6 -> menuCodigos();
                 case 7 -> executarBateria();
                 case 0 -> {
@@ -138,8 +134,8 @@ public final class Main {
 
     private static <T> void menuEntidade(String titulo,
                                          BaseService<T> servico,
-                                         Supplier<T> criacao,
-                                         Consumer<T> edicao,
+                                         Supplier<String> criacao,
+                                         Consumer<String> atualizacao,
                                          Function<T, String> resumo) {
         while (true) {
             System.out.println();
@@ -147,19 +143,20 @@ public final class Main {
             System.out.println(" 1 - Criar");
             System.out.println(" 2 - Listar todos");
             System.out.println(" 3 - Buscar por id");
-            System.out.println(" 4 - Atualizar");
+            if (atualizacao != null) {
+                System.out.println(" 4 - Atualizar");
+            }
             System.out.println(" 5 - Deletar");
             System.out.println(" 0 - Voltar");
 
             int opcao = lerOpcao("Opção: ");
             switch (opcao) {
                 case 1 -> executar(() -> {
-                    T entidade = criacao.get();
-                    if (entidade == null) {
+                    String id = criacao.get();
+                    if (id == null) {
                         System.out.println("  Operação cancelada.");
                         return;
                     }
-                    String id = servico.criar(entidade);
                     System.out.println("  Criado com id " + id);
                 });
                 case 2 -> executar(() -> {
@@ -174,13 +171,17 @@ public final class Main {
                     T encontrado = servico.buscarPorId(id).orElseThrow();
                     System.out.println("  " + resumo.apply(encontrado));
                 });
-                case 4 -> executar(() -> {
-                    String id = lerObrigatorio("  Id: ");
-                    T entidade = servico.buscarPorId(id).orElseThrow();
-                    edicao.accept(entidade);
-                    servico.salvar(id, entidade);
-                    System.out.println("  Atualizado.");
-                });
+                case 4 -> {
+                    if (atualizacao == null) {
+                        System.out.println("  Operação não disponível.");
+                    } else {
+                        executar(() -> {
+                            String id = lerObrigatorio("  Id: ");
+                            atualizacao.accept(id);
+                            System.out.println("  Operação concluída.");
+                        });
+                    }
+                }
                 case 5 -> executar(() -> {
                     String id = lerObrigatorio("  Id: ");
                     servico.deletar(id);
@@ -229,7 +230,15 @@ public final class Main {
                 : "Bateria concluída com falhas (veja acima).");
     }
 
-    // ------------------------------------------------------------------ produtos
+    private static String criarProduto() {
+        return produtoService.criar(novoProduto());
+    }
+
+    private static void atualizarProduto(String id) {
+        Produto produto = produtoService.buscarPorId(id).orElseThrow();
+        editarProduto(produto);
+        produtoService.salvar(id, produto);
+    }
 
     private static Produto novoProduto() {
         String nome = lerObrigatorio("  Nome: ");
@@ -248,7 +257,7 @@ public final class Main {
         produto.setPrecoEmCentavos(lerPreco("Preço", produto.getPrecoEmCentavos()));
         produto.setEstoque(lerInt("Estoque", produto.getEstoque()));
         produto.setAtivo(lerSimNao("Ativo?", produto.isAtivo()));
-        produto.setCatregoriaId(lerOuManter("Categoria", produto.getCatregoriaId()));
+        produto.setCategoriaId(lerOuManter("Categoria", produto.getCategoriaId()));
     }
 
     private static String resumoProduto(Produto produto) {
@@ -256,11 +265,19 @@ public final class Main {
                 + " | " + produto.getNome()
                 + " | " + formatarPreco(produto.getPrecoEmCentavos())
                 + " | estoque=" + produto.getEstoque()
-                + " | categoria=" + textoOuTraco(produto.getCatregoriaId())
+                + " | categoria=" + textoOuTraco(produto.getCategoriaId())
                 + (produto.isAtivo() ? "" : " | INATIVO");
     }
 
-    // ------------------------------------------------------------------ usuarios
+    private static String criarUsuario() {
+        return usuarioService.criar(novoUsuario());
+    }
+
+    private static void atualizarUsuario(String id) {
+        Usuario usuario = usuarioService.buscarPorId(id).orElseThrow();
+        editarUsuario(usuario);
+        usuarioService.salvar(id, usuario);
+    }
 
     private static Usuario novoUsuario() {
         String email = lerObrigatorio("  E-mail: ");
@@ -280,61 +297,56 @@ public final class Main {
         return usuario.getId() + " | " + usuario.getEmail();
     }
 
-    // ------------------------------------------------------------------ carrinhos
-
-    private static Carrinho novoCarrinho() {
+    private static String criarCarrinho() {
         System.out.println("  Produtos disponíveis:");
         listarProdutosDisponiveis();
 
-        String usuarioId = ler("  Id do usuário (opcional): ");
-        List<ItemCarrinho> itens = new ArrayList<>();
+        String usuarioId = lerObrigatorio("  Id do usuário: ");
+        List<ItemCarrinhoRequest> itens = new ArrayList<>();
 
         while (true) {
             String produtoId = ler("  Id do produto (Enter para finalizar): ");
             if (produtoId.isEmpty()) {
                 break;
             }
-
-            Produto produto;
-            try {
-                produto = produtoService.buscarPorId(produtoId).orElseThrow();
-            } catch (EntidadeNaoEncontradaException e) {
-                System.out.println("  Produto não encontrado.");
-                continue;
-            }
-
-            int quantidade = lerInt("  Quantidade", 1);
-            itens.add(new ItemCarrinho(produto, quantidade));
-            System.out.println("  Item: " + quantidade + "x " + produto.getNome());
+            int quantidade = lerQuantidade();
+            itens.add(new ItemCarrinhoRequest(produtoId, quantidade));
+            System.out.println("  Item: " + quantidade + "x produto " + produtoId);
         }
 
         if (itens.isEmpty()) {
             return null;
         }
-
-        long total = itens.stream().mapToLong(ItemCarrinho::getSubtotal).sum();
-        Carrinho carrinho = new Carrinho(null, itens, total, itens);
-        if (!usuarioId.isEmpty()) {
-            carrinho.setUsuarioId(usuarioId);
-        }
-        return carrinho;
+        return carrinhoService.criar(new CarrinhoRequest(usuarioId, itens));
     }
 
-    private static void editarCarrinho(Carrinho carrinho) {
-        System.out.println("  Adicionar item ao carrinho:");
+    private static void atualizarCarrinho(String id) {
+        Carrinho carrinho = carrinhoService.buscarPorId(id).orElseThrow();
+        List<ItemCarrinhoRequest> itens = new ArrayList<>();
+        if (carrinho.getProdutos() != null) {
+            for (ItemCarrinho item : carrinho.getProdutos()) {
+                itens.add(new ItemCarrinhoRequest(item.getProdutoId(), item.getQuantidade()));
+            }
+        }
+
+        System.out.println("  Adicionar ou alterar item:");
         listarProdutosDisponiveis();
-
         String produtoId = lerObrigatorio("  Id do produto: ");
-        Produto produto = produtoService.buscarPorId(produtoId).orElseThrow();
-        int quantidade = lerInt("  Quantidade", 1);
+        int quantidade = lerQuantidade();
 
-        List<ItemCarrinho> itens = new ArrayList<>(
-                carrinho.getProdutos() == null ? List.of() : carrinho.getProdutos());
-        itens.add(new ItemCarrinho(produto, quantidade));
+        boolean encontrado = false;
+        for (int i = 0; i < itens.size(); i++) {
+            if (itens.get(i).produtoId().equals(produtoId)) {
+                itens.set(i, new ItemCarrinhoRequest(produtoId, quantidade));
+                encontrado = true;
+                break;
+            }
+        }
+        if (!encontrado) {
+            itens.add(new ItemCarrinhoRequest(produtoId, quantidade));
+        }
 
-        carrinho.setProdutos(itens);
-        carrinho.setProdutosSelecionados(itens);
-        carrinho.setTotalEmCentavos(itens.stream().mapToLong(ItemCarrinho::getSubtotal).sum());
+        carrinhoService.atualizar(id, new CarrinhoUpdateRequest(itens));
     }
 
     private static String resumoCarrinho(Carrinho carrinho) {
@@ -346,50 +358,35 @@ public final class Main {
     }
 
     private static void listarProdutosDisponiveis() {
-        try {
-            for (Produto produto : produtoService.buscarTodos()) {
-                System.out.println("   - " + produto.getId()
-                        + " | " + produto.getNome()
-                        + " | " + formatarPreco(produto.getPrecoEmCentavos())
-                        + " | estoque=" + produto.getEstoque());
-            }
-        } catch (NenhumaEntidadeEncontradaException e) {
+        List<Produto> produtos = produtoService.buscarTodos();
+        if (produtos.isEmpty()) {
             System.out.println("   (nenhum produto cadastrado)");
-        }
-    }
-
-    // ------------------------------------------------------------------ vendas
-
-    private static Venda novaVenda() {
-        String carrinhoId = lerObrigatorio("  Id do carrinho: ");
-        Carrinho carrinho = carrinhoService.buscarPorId(carrinhoId).orElseThrow();
-
-        List<Produto> itens = new ArrayList<>();
-        for (ItemCarrinho item : carrinho.getProdutos()) {
-            try {
-                itens.add(produtoService.buscarPorId(item.getProdutoId()).orElseThrow());
-            } catch (EntidadeNaoEncontradaException e) {
-                System.out.println("  Aviso: produto " + item.getProdutoId() + " não existe mais.");
-            }
-        }
-
-        Venda venda = new Venda();
-        venda.setCarrinhoId(carrinhoId);
-        venda.setTotalEmCentavos(carrinho.getTotalEmCentavos());
-        venda.setItens(itens);
-        venda.setPago(false);
-        return venda;
-    }
-
-    private static void editarVenda(Venda venda) {
-        if (!lerSimNao("Marcar esta venda como paga?", true)) {
             return;
         }
-        String pagamentoId = ler("  Id do pagamento (opcional): ");
-        if (!pagamentoId.isEmpty()) {
-            venda.setPagamentoId(pagamentoId);
+        for (Produto produto : produtos) {
+            System.out.println("   - " + produto.getId()
+                    + " | " + produto.getNome()
+                    + " | " + formatarPreco(produto.getPrecoEmCentavos())
+                    + " | estoque=" + produto.getEstoque());
         }
-        venda.setPago(true);
+    }
+
+    private static String criarVenda() {
+        String carrinhoId = lerObrigatorio("  Id do carrinho: ");
+        return vendaService.criar(new VendaRequest(carrinhoId));
+    }
+
+    private static void confirmarVenda(String id) {
+        Venda venda = vendaService.buscarPorId(id).orElseThrow();
+        if (venda.isPago()) {
+            System.out.println("  Venda já está paga.");
+            return;
+        }
+        if (!lerSimNao("Confirmar o pagamento desta venda?", true)) {
+            System.out.println("  Operação cancelada.");
+            return;
+        }
+        vendaService.confirmarPagamento(id);
     }
 
     private static String resumoVenda(Venda venda) {
@@ -399,28 +396,10 @@ public final class Main {
                 + " | " + (venda.isPago() ? "PAGA" : "PENDENTE");
     }
 
-    // ------------------------------------------------------------------ pagamentos
-
-    private static Pagamento novoPagamento() {
+    private static String criarPagamento() {
         String vendaId = lerObrigatorio("  Id da venda: ");
-
-        Long valorPadrao = null;
-        try {
-            valorPadrao = vendaService.buscarPorId(vendaId).orElseThrow().getTotalEmCentavos();
-        } catch (EntidadeNaoEncontradaException e) {
-            System.out.println("  Aviso: venda não encontrada; informe o valor manualmente.");
-        }
-
         MetodoPagamento metodo = escolherMetodoPagamento();
-        long valor = lerPreco("  Valor", valorPadrao);
-        return new Pagamento(false, null, vendaId, metodo, valor);
-    }
-
-    private static void editarPagamento(Pagamento pagamento) {
-        pagamento.setPago(lerSimNao("Pago?", pagamento.isPago()));
-        if (lerSimNao("Alterar método de pagamento?", false)) {
-            pagamento.setMetodoPagamento(escolherMetodoPagamento());
-        }
+        return pagamentoService.criar(new PagamentoRequest(vendaId, metodo));
     }
 
     private static String resumoPagamento(Pagamento pagamento) {
@@ -444,8 +423,6 @@ public final class Main {
             default -> MetodoPagamento.PIX;
         };
     }
-
-    // ------------------------------------------------------------------ codigos de verificacao
 
     private static void salvarCodigo() {
         String email = lerObrigatorio("  E-mail: ").toLowerCase(Locale.ROOT);
@@ -507,8 +484,6 @@ public final class Main {
             throw new IllegalStateException(e);
         }
     }
-
-    // ------------------------------------------------------------------ utilidades
 
     private static void executar(Runnable acao) {
         try {
@@ -574,6 +549,16 @@ public final class Main {
         }
     }
 
+    private static int lerQuantidade() {
+        while (true) {
+            int quantidade = lerInt("  Quantidade", 1);
+            if (quantidade > 0) {
+                return quantidade;
+            }
+            System.out.println("  Informe uma quantidade maior que zero.");
+        }
+    }
+
     private static long lerPreco(String mensagem, Long padraoEmCentavos) {
         while (true) {
             String sufixo = padraoEmCentavos == null ? "" : " [" + formatarPreco(padraoEmCentavos) + "]";
@@ -622,7 +607,6 @@ public final class Main {
         return valor == null || valor.isBlank() ? "-" : valor;
     }
 
-    /** Lancada quando a entrada padrao e encerrada (Ctrl+D / fim do stream). */
     private static final class FimDaEntrada extends RuntimeException {
     }
 

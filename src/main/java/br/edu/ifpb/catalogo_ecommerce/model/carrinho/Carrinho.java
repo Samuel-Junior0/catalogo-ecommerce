@@ -1,6 +1,6 @@
 package br.edu.ifpb.catalogo_ecommerce.model.carrinho;
 
-import br.edu.ifpb.catalogo_ecommerce.model.produto.Produto;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.annotation.DocumentId;
 import com.google.cloud.firestore.annotation.ServerTimestamp;
@@ -27,6 +27,7 @@ public class Carrinho {
     @ServerTimestamp
     private Timestamp atualizadoEm;
 
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public Carrinho(String id, List<ItemCarrinho> produtos, long totalEmCentavos, List<ItemCarrinho> produtosSelecionados) {
         this.id = id;
         this.produtos = produtos;

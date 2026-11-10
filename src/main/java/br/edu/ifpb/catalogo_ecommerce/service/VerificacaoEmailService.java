@@ -31,13 +31,13 @@ public class VerificacaoEmailService {
     public void enviarCodigo(String email) {
         email = email.trim().toLowerCase();
 
-        String codigo = String.format("%06d", random.nextInt(1_000_000)); // 000000 a 999999
+        String codigo = String.format("%06d", random.nextInt(1_000_000));
 
         CodigoVerificacao registro = new CodigoVerificacao();
         registro.setCodigoHash(hash(email, codigo));
         registro.setExpiraEmMillis(System.currentTimeMillis() + VALIDADE.toMillis());
         registro.setTentativas(0);
-        repository.salvarComId(email, registro);   // sobrescreve código anterior
+        repository.salvarComId(email, registro);
 
         SimpleMailMessage mensagem = new SimpleMailMessage();
         mensagem.setTo(email);
@@ -53,14 +53,14 @@ public class VerificacaoEmailService {
 
         CodigoVerificacao registro = repository.buscarPorId(email).orElse(null);
         if (registro == null) {
-            return false;                           // nunca pediu código, ou já foi usado
+            return false;
         }
         if (System.currentTimeMillis() > registro.getExpiraEmMillis()) {
             repository.deletar(email);
-            return false;                           // expirou
+            return false;
         }
         if (registro.getTentativas() >= MAX_TENTATIVAS) {
-            return false;                           // bloqueado: peça um novo código
+            return false;
         }
 
         boolean correto = MessageDigest.isEqual(
@@ -73,7 +73,7 @@ public class VerificacaoEmailService {
             return false;
         }
 
-        repository.deletar(email);                  // código só vale uma vez
+        repository.deletar(email);
         return true;
     }
 

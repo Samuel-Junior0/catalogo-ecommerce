@@ -1,6 +1,7 @@
 package br.edu.ifpb.catalogo_ecommerce.model.pagamento;
 
 import br.edu.ifpb.catalogo_ecommerce.enumerates.MetodoPagamento;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.annotation.DocumentId;
 import com.google.cloud.firestore.annotation.ServerTimestamp;
@@ -25,11 +26,11 @@ public class Pagamento {
     @ServerTimestamp
     private Timestamp criadoEm;
 
-    @ServerTimestamp
     private Timestamp pagoEm;
 
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public Pagamento(boolean pago, String id, String vendaId, MetodoPagamento metodoPagamento, long precoEmCentavos) {
-        this.pago = false;
+        this.pago = pago;
         this.id = id;
         this.vendaId = vendaId;
         this.metodoPagamento = metodoPagamento;

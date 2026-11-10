@@ -2,6 +2,8 @@ package br.edu.ifpb.catalogo_ecommerce.controller;
 
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
+@Tag(name = "Home", description = "Informações da aplicação e health check do Firestore")
 public class HomeController {
 
     private static final String HEALTH_COLLECTION = "_health";
@@ -23,6 +26,7 @@ public class HomeController {
         this.firestore = firestore;
     }
 
+    @Operation(summary = "Página inicial", description = "Retorna o status da aplicação e links úteis.")
     @GetMapping("/")
     public Map<String, Object> home() {
         Map<String, Object> response = new LinkedHashMap<>();
@@ -32,6 +36,9 @@ public class HomeController {
         return response;
     }
 
+    @Operation(
+            summary = "Health check do Firestore",
+            description = "Grava e lê um documento de teste no Firestore, retornando a latência da operação.")
     @GetMapping("/health/firestore")
     public ResponseEntity<Map<String, Object>> firestoreHealth() {
         Map<String, Object> response = new LinkedHashMap<>();

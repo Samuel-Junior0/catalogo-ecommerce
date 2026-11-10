@@ -1,6 +1,7 @@
 package br.edu.ifpb.catalogo_ecommerce.model.carrinho;
 
 import br.edu.ifpb.catalogo_ecommerce.model.produto.Produto;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.cloud.firestore.annotation.Exclude;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,6 +17,7 @@ public class ItemCarrinho {
     private long precoEmCentavos;
     private int quantidade;
 
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public ItemCarrinho(Produto produto, int quantidade) {
         this.produtoId = produto.getId();
         this.nome = produto.getNome();

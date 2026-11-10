@@ -1,7 +1,6 @@
 package br.edu.ifpb.catalogo_ecommerce.service;
 
 import br.edu.ifpb.catalogo_ecommerce.exception.EntidadeNaoEncontradaException;
-import br.edu.ifpb.catalogo_ecommerce.exception.NenhumaEntidadeEncontradaException;
 import br.edu.ifpb.catalogo_ecommerce.repository.BaseRepository;
 
 import java.util.List;
@@ -32,11 +31,7 @@ public abstract class BaseService<T> {
     }
 
     public List<T> buscarTodos(){
-        List<T> entidadesEncontradas = repository.listarTodos();
-        if(entidadesEncontradas.isEmpty()){
-            throw new NenhumaEntidadeEncontradaException("");
-        }
-        return entidadesEncontradas;
+        return repository.listarTodos();
     }
 
     public void deletar(String id){

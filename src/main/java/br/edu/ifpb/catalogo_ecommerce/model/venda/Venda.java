@@ -1,8 +1,6 @@
 package br.edu.ifpb.catalogo_ecommerce.model.venda;
 
-import br.edu.ifpb.catalogo_ecommerce.enumerates.MetodoPagamento;
-import br.edu.ifpb.catalogo_ecommerce.model.produto.Produto;
-import com.google.api.client.util.DateTime;
+import br.edu.ifpb.catalogo_ecommerce.model.carrinho.ItemCarrinho;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.annotation.DocumentId;
 import com.google.cloud.firestore.annotation.ServerTimestamp;
@@ -26,8 +24,9 @@ public class Venda {
     private String carrinhoId;
 
     private long totalEmCentavos;
-    private List<Produto> itens;
+    private List<ItemCarrinho> itens;
     private boolean pago;
+    private boolean estoqueBaixado;
 
     @ServerTimestamp
     private Timestamp criadaEm;
